@@ -19,6 +19,9 @@ services:
       PORT: 8080
       DEBUG_PORT: 5005
 
+      # Host validation for remote deployments (comma-separated hostnames)
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-}
+
       # Authentication - Personal Access Token
       ADO_MCP_AUTH_TOKEN: ${ADO_MCP_AUTH_TOKEN:-}
 

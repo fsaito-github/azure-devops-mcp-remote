@@ -133,12 +133,16 @@ async function main() {
   const tenantId = (await getOrgTenant(orgName)) ?? argv.tenant;
   const authenticator = createAuthenticator(argv.authentication, tenantId);
 
+  // For remote deployments, configure host validation
+  // ALLOWED_HOSTS env var: comma-separated list of allowed hostnames, or omit for auto-detection
+  const allowedHosts = process.env.ALLOWED_HOSTS ? process.env.ALLOWED_HOSTS.split(",") : undefined;
+
   if (argv.transport === "stdio") {
     const server = createServer();
     const transport = new StdioServerTransport();
     await server.connect(transport);
   } else if (argv.transport === "http") {
-    const app = createMcpExpressApp();
+    const app = createMcpExpressApp({ host: "0.0.0.0", allowedHosts });
 
     // Setup health checks
     setupHealthChecks(app, argv.port);
@@ -224,7 +228,7 @@ async function main() {
       process.exit(0);
     });
   } else if (argv.transport === "sse") {
-    const app = createMcpExpressApp();
+    const app = createMcpExpressApp({ host: "0.0.0.0", allowedHosts });
 
     // Setup health checks
     setupHealthChecks(app, argv.port);
