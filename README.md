@@ -5,13 +5,12 @@
 
 Este projeto é um fork do [Azure DevOps MCP Server](https://github.com/microsoft/azure-devops-mcp) da Microsoft, com suporte adicional a **transporte HTTP Streamable e SSE**, permitindo deploy como container remoto no **Azure Container Apps** (ou qualquer infraestrutura de containers).
 
-### 📚 Documentação Rápida
+### 📚 Documentação Essencial
 
-- **[Guia de Deploy](./DEPLOYMENT_GUIDE.md)** — Deploy passo-a-passo no Azure Container Apps
-- **[Relatório de Conclusão](./PROJECT_COMPLETION_REPORT.md)** — Detalhes completos das 4 fases
-- **[Sumário de Fases](./PHASES_SUMMARY.md)** — Visão geral de cada fase implementada
-- **[Exemplos de Autenticação](./AUTH_EXAMPLES.md)** — Diferentes métodos de autenticação
-- **[Guia de Monitoramento](./MONITORING.md)** — Health checks e observabilidade
+- **[Getting Started](./docs/GETTINGSTARTED.md)** — Primeiros passos
+- **[Exemplos](./docs/EXAMPLES.md)** — Casos de uso do MCP
+- **[FAQ](./docs/FAQ.md)** — Perguntas frequentes
+- **[Troubleshooting](./docs/TROUBLESHOOTING.md)** — Diagnostico de problemas
 
 ## 🆕 O que mudou em relação ao projeto original
 
