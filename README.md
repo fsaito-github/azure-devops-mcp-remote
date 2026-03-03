@@ -1,9 +1,6 @@
 # Azure DevOps MCP Server — Remote (HTTP/SSE) para Azure Container Apps
 
-> ✅ **Status: Production Ready** — Projeto completo com todas as 4 fases implementadas  
-> 📊 **Code Coverage**: > 85% | 🧪 **Tests**: 116+ passing | 🏗️ **Build**: 100% success
-
-Este projeto é um fork do [Azure DevOps MCP Server](https://github.com/microsoft/azure-devops-mcp) da Microsoft, com suporte adicional a **transporte HTTP Streamable e SSE**, permitindo deploy como container remoto no **Azure Container Apps** (ou qualquer infraestrutura de containers).
+Este projeto é um fork do[Azure DevOps MCP Server](https://github.com/microsoft/azure-devops-mcp) da Microsoft, com suporte adicional a **transporte HTTP Streamable e SSE**, permitindo deploy como container remoto no **Azure Container Apps** (ou qualquer infraestrutura de containers).
 
 ### 📚 Documentação Essencial
 
@@ -18,17 +15,6 @@ Este projeto é um fork do [Azure DevOps MCP Server](https://github.com/microsof
 - Flags `--transport` e `--port` na CLI
 - Dockerfile multi-stage para deploy em containers
 - Este guia de deploy no Azure Container Apps
-
-## ✅ Fases Implementadas
-
-| Fase        | Descrição                        | Status      |
-| ----------- | -------------------------------- | ----------- |
-| **Phase 1** | Docker Containerization          | ✅ Completo |
-| **Phase 2** | OAuth2 & Azure AD Authentication | ✅ Completo |
-| **Phase 3** | Health Checks & Monitoring       | ✅ Completo |
-| **Phase 4** | Azure Container Apps Deployment  | ✅ Completo |
-
-Todos os testes passando, build bem-sucedido, e pronto para produção.
 
 ## 📋 Pré-requisitos
 
