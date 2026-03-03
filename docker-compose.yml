@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  azure-devops-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: azure-devops-mcp
+    command: ["dist/index.js", "${AZURE_DEVOPS_ORG:-your-org}", "--authentication", "envvar", "--transport", "http", "--port", "8080"]
+    ports:
+      # Servidor MCP principal
+      - "8080:8080"
+      # Debug port (Node Inspector)
+      - "5005:5005"
+    environment:
+      # Configurações da aplicação
+      NODE_ENV: ${NODE_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PORT: 8080
+      DEBUG_PORT: 5005
+
+      # Authentication - Personal Access Token
+      ADO_MCP_AUTH_TOKEN: ${ADO_MCP_AUTH_TOKEN:-}
+
+      # Autenticação OAuth2 (será implementado)
+      # OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID:-}
+      # OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-}
+      # OAUTH_TENANT_ID: ${OAUTH_TENANT_ID:-}
+
+    volumes:
+      # Logs persistentes
+      - ./logs:/app/logs
+      # Dados temporários (se necessário)
+      - /app/node_modules
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Limites de recursos (opcional, comentado por padrão)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1'
+    #       memory: 1G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 512M
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  logs:
+    driver: local
+
+networks:
+  default:
+    name: azure-devops-mcp-network
+    driver: bridge

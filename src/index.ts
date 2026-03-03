@@ -23,6 +23,7 @@ import { configureAllTools } from "./tools.js";
 import { UserAgentComposer } from "./useragent.js";
 import { packageVersion } from "./version.js";
 import { DomainsManager } from "./shared/domains.js";
+import { setupHealthChecks } from "./health-integration.js";
 
 function isGitHubCodespaceEnv(): boolean {
   return process.env.CODESPACES === "true" && !!process.env.CODESPACE_NAME;
@@ -138,6 +139,10 @@ async function main() {
     await server.connect(transport);
   } else if (argv.transport === "http") {
     const app = createMcpExpressApp();
+
+    // Setup health checks
+    setupHealthChecks(app, argv.port);
+
     const transports: Record<string, StreamableHTTPServerTransport> = {};
 
     app.post("/mcp", async (req: Request, res: Response) => {
@@ -220,6 +225,10 @@ async function main() {
     });
   } else if (argv.transport === "sse") {
     const app = createMcpExpressApp();
+
+    // Setup health checks
+    setupHealthChecks(app, argv.port);
+
     const transports: Record<string, SSEServerTransport> = {};
 
     app.get("/sse", async (req: Request, res: Response) => {
