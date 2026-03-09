@@ -3,6 +3,9 @@
  * Configurações para integração com Azure AD
  */
 
+export const ADO_USER_IMPERSONATION_SCOPE = "499b84ac-1321-427f-aa17-267ca6975798/user_impersonation";
+export const ADO_DEFAULT_SCOPE = "499b84ac-1321-427f-aa17-267ca6975798/.default";
+
 export interface AzureADConfig {
   clientId: string;
   clientSecret: string;
@@ -28,10 +31,18 @@ export interface UserSession {
   lastActivity: Date;
 }
 
+export interface OBOConfig extends AzureADConfig {
+  adoOrganization: string;
+}
+
 export interface AuthError {
   code: string;
   message: string;
   statusCode: number;
+}
+
+export function getOAuthLoginScopes(): string {
+  return `openid profile email ${ADO_USER_IMPERSONATION_SCOPE}`;
 }
 
 /**

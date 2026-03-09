@@ -8,11 +8,13 @@ import { OAuth2Controller } from "./oauth2.js";
 import { SessionManager } from "./session.js";
 import { AuthMiddleware, AuthenticatedRequest } from "./middleware.js";
 import { AzureADConfig } from "./config.js";
+import { OBOTokenService } from "./obo.js";
 
 export class AuthController {
   private oauth2: OAuth2Controller;
   private sessionManager: SessionManager;
   private authMiddleware: AuthMiddleware;
+  private oboService: OBOTokenService;
   private stateStore: Map<string, { codeVerifier: string; timestamp: number }>;
 
   constructor(config: AzureADConfig) {
@@ -20,6 +22,7 @@ export class AuthController {
     this.sessionManager = new SessionManager();
     this.authMiddleware = new AuthMiddleware(this.sessionManager);
     this.stateStore = new Map();
+    this.oboService = new OBOTokenService(config);
 
     // Limpar states expirados a cada 5 minutos
     setInterval(() => this.cleanupExpiredStates(), 5 * 60 * 1000);
@@ -35,6 +38,7 @@ export class AuthController {
     router.get("/auth/me", this.authMiddleware.validateToken, this.handleGetUser.bind(this));
     router.get("/auth/status", this.handleStatus.bind(this));
     router.post("/auth/refresh", this.handleRefreshToken.bind(this));
+    router.post("/auth/refresh-ado", this.authMiddleware.validateToken, this.handleRefreshAdoToken.bind(this));
   }
 
   /**
@@ -104,6 +108,19 @@ export class AuthController {
       // Obter informações do usuário
       const userInfo = await this.oauth2.getUserInfo(token.accessToken);
 
+      // Perform OBO exchange to get Azure DevOps token
+      let adoToken;
+      try {
+        adoToken = await this.oboService.exchangeForAdoToken(token.accessToken);
+      } catch (oboError) {
+        console.error("OBO exchange failed:", oboError);
+        res.status(500).json({
+          error: "OBO_EXCHANGE_FAILED",
+          message: "Failed to obtain Azure DevOps token via OBO flow. Ensure the App Registration has Azure DevOps user_impersonation permission.",
+        });
+        return;
+      }
+
       // Criar sessão
       const jwt = this.sessionManager.createSession(
         {
@@ -115,6 +132,12 @@ export class AuthController {
         },
         token
       );
+
+      // Store ADO token in the session
+      const sessionPayload = this.sessionManager.validateToken(jwt);
+      if (sessionPayload) {
+        this.sessionManager.storeAdoToken(sessionPayload.sessionId, adoToken);
+      }
 
       // Remover state do armazenamento
       this.stateStore.delete(state);
@@ -265,9 +288,55 @@ export class AuthController {
   }
 
   /**
-   * Retorna o middleware de autenticação
+   * POST /auth/refresh-ado - Refreshes the ADO token via OBO
    */
+  private async handleRefreshAdoToken(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: "NOT_AUTHENTICATED", message: "User is not authenticated" });
+        return;
+      }
+
+      const userAccessToken = this.sessionManager.getUserAccessToken(req.user.sessionId);
+      if (!userAccessToken) {
+        res.status(401).json({ error: "SESSION_EXPIRED", message: "User session has expired. Please login again." });
+        return;
+      }
+
+      // Clear cached token and perform fresh OBO exchange
+      this.oboService.clearCache(req.user.userId);
+      const adoToken = await this.oboService.exchangeForAdoToken(userAccessToken);
+      this.sessionManager.storeAdoToken(req.user.sessionId, adoToken);
+
+      res.json({
+        success: true,
+        message: "ADO token refreshed successfully",
+        expiresIn: adoToken.expiresIn,
+      });
+    } catch (error) {
+      console.error("ADO token refresh error:", error);
+      res.status(500).json({
+        error: "ADO_REFRESH_FAILED",
+        message: "Failed to refresh Azure DevOps token",
+      });
+    }
+  }
+
   getMiddleware(): AuthMiddleware {
     return this.authMiddleware;
+  }
+
+  /**
+   * Returns the OBO token service instance
+   */
+  getOBOService(): OBOTokenService {
+    return this.oboService;
+  }
+
+  /**
+   * Returns the session manager instance
+   */
+  getSessionManager(): SessionManager {
+    return this.sessionManager;
   }
 }

@@ -4,7 +4,7 @@
  */
 
 import axios from "axios";
-import { AzureADConfig, OAuthToken, UserSession, generateAuthState, getAzureADUrls } from "./config.js";
+import { AzureADConfig, OAuthToken, UserSession, generateAuthState, getAzureADUrls, getOAuthLoginScopes } from "./config.js";
 
 export class OAuth2Controller {
   private config: AzureADConfig;
@@ -18,7 +18,7 @@ export class OAuth2Controller {
   /**
    * Gera a URL de login para redirecionar o usuário
    */
-  generateLoginUrl(scope: string = "openid profile email"): {
+  generateLoginUrl(scope: string = getOAuthLoginScopes()): {
     url: string;
     state: string;
     codeVerifier: string;

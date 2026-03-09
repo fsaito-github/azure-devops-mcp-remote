@@ -25,10 +25,12 @@ services:
       # Authentication - Personal Access Token
       ADO_MCP_AUTH_TOKEN: ${ADO_MCP_AUTH_TOKEN:-}
 
-      # Autenticação OAuth2 (será implementado)
-      # OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID:-}
-      # OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-}
-      # OAUTH_TENANT_ID: ${OAUTH_TENANT_ID:-}
+      # Authentication OBO Flow (--authentication obo)
+      OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID:-}
+      OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-}
+      OAUTH_TENANT_ID: ${OAUTH_TENANT_ID:-}
+      OAUTH_REDIRECT_URL: ${OAUTH_REDIRECT_URL:-http://localhost:8080/auth/callback}
+      JWT_SECRET: ${JWT_SECRET:-}
 
     volumes:
       # Logs persistentes
@@ -38,11 +40,11 @@ services:
 
     # Health check
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 10s
 
     # Restart policy
     restart: unless-stopped

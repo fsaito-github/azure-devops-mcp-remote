@@ -15,3 +15,11 @@ export { AuthMiddleware } from "./middleware.js";
 export type { AuthenticatedRequest } from "./middleware.js";
 
 export { AuthController } from "./controller.js";
+
+export { OBOTokenService } from "./obo.js";
+export { ADO_SCOPES } from "./obo.js";
+
+export { createPerSessionAuthenticator } from "./per-session-auth.js";
+
+export { ADO_USER_IMPERSONATION_SCOPE, ADO_DEFAULT_SCOPE, getOAuthLoginScopes } from "./config.js";
+export type { OBOConfig } from "./config.js";

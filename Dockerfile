@@ -41,9 +41,9 @@ COPY --from=builder /app/node_modules ./node_modules
 # Criar diretório para logs
 RUN mkdir -p /app/logs && chmod 755 /app/logs
 
-# Health check - verifica se o servidor está respondendo
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+# Health check - verifica se o servidor está pronto para receber tráfego
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/ready || exit 1
 
 # Criar usuário não-root por segurança
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001

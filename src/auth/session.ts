@@ -19,11 +19,13 @@ export class SessionManager {
   private jwtSecret: string;
   private sessionTTL: number; // em segundos
   private sessions: Map<string, UserSession>;
+  private adoTokens: Map<string, { token: OAuthToken; expiresAt: number }>;
 
   constructor(jwtSecret?: string, sessionTTLMinutes: number = 60) {
     this.jwtSecret = jwtSecret || process.env.JWT_SECRET || "your-secret-key-change-in-production";
     this.sessionTTL = sessionTTLMinutes * 60; // converter para segundos
     this.sessions = new Map();
+    this.adoTokens = new Map();
   }
 
   /**
@@ -82,9 +84,40 @@ export class SessionManager {
   }
 
   /**
+   * Stores an ADO token for a session
+   */
+  storeAdoToken(sessionId: string, token: OAuthToken): void {
+    const expiresAt = Date.now() + (token.expiresIn * 1000) - (5 * 60 * 1000); // 5 min buffer
+    this.adoTokens.set(sessionId, { token, expiresAt });
+  }
+
+  /**
+   * Gets the ADO token for a session, returning null if expired
+   */
+  getAdoToken(sessionId: string): OAuthToken | null {
+    const entry = this.adoTokens.get(sessionId);
+    if (!entry) return null;
+    if (Date.now() >= entry.expiresAt) {
+      this.adoTokens.delete(sessionId);
+      return null;
+    }
+    return entry.token;
+  }
+
+  /**
+   * Gets the original user access token (for OBO refresh)
+   */
+  getUserAccessToken(sessionId: string): string | null {
+    const session = this.sessions.get(sessionId);
+    if (!session || !session.token) return null;
+    return session.token.accessToken;
+  }
+
+  /**
    * Termina uma sessão (logout)
    */
   destroySession(sessionId: string): boolean {
+    this.adoTokens.delete(sessionId);
     return this.sessions.delete(sessionId);
   }
 
@@ -99,6 +132,7 @@ export class SessionManager {
       const sessionAge = now - session.lastActivity.getTime();
       if (sessionAge > this.sessionTTL * 1000) {
         this.sessions.delete(sessionId);
+        this.adoTokens.delete(sessionId);
         cleaned++;
       }
     }

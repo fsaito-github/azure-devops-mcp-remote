@@ -16,11 +16,11 @@ Currently, you need to fetch the list of projects so the LLM has context about t
 
 ## Are PAT's supported?
 
-Sorry, PAT's are currently not supported in this local MCP Sever.
+Yes! You can use a Personal Access Token (PAT) via the `envvar` authentication type. Set the `ADO_MCP_AUTH_TOKEN` environment variable with your PAT and use `--authentication envvar`. See the [Troubleshooting](./TROUBLESHOOTING.md) guide for details.
 
 ## Is there a remote supported version of the MCP Server?
 
-At this time, only the local version of the MCP Server is supported.
+Yes! This fork supports remote deployment via HTTP and SSE transports. Use `--transport http` or `--transport sse` with `--port <port>` to run as a remote server. You can deploy it on Azure Container Apps or any container platform. See the main [README](../README.md) for deployment instructions.
 
 ## Are personal accounts supported?
 
@@ -31,3 +31,20 @@ Unfortunately, personal accounts are not supported. To maintain a higher level o
 ## When will a remote Azure DevOps MCP Server be availble?
 
 We receive this question frequently. The good news is that work is currently underway. Development began in early January 2026. Once we can provide a reliable timeline, we will publish it on the public [Azure DevOps roadmap](https://learn.microsoft.com/en-us/azure/devops/release-notes/features-timeline).
+
+## What is OBO (On-Behalf-Of) authentication?
+
+OBO is an authentication mode (`--authentication obo`) that allows each user to login with their own Azure AD identity. The server exchanges the user's token for an Azure DevOps delegated token, so all actions in ADO are traced to the real user — not a shared service account. This is recommended for production multi-user environments. See [OBO Authentication](./OBO-AUTH.md) for full documentation.
+
+## Do I need an App Registration for OBO?
+
+Yes. OBO requires an App Registration in Azure AD with the `user_impersonation` permission for Azure DevOps. See [Azure AD Setup](./AZURE-AD-SETUP.md) for a step-by-step guide.
+
+## Which authentication mode should I use?
+
+| Scenario | Recommended Mode |
+|----------|-----------------|
+| Local development with VS Code | `interactive` (default) |
+| GitHub Codespaces | `azcli` |
+| Docker container / CI/CD (single identity) | `envvar` (PAT) or `env` (Managed Identity) |
+| Production multi-user (identity per user) | `obo` |

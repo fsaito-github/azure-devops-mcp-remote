@@ -24,6 +24,9 @@ import { UserAgentComposer } from "./useragent.js";
 import { packageVersion } from "./version.js";
 import { DomainsManager } from "./shared/domains.js";
 import { setupHealthChecks } from "./health-integration.js";
+import { loadAzureADConfig } from "./auth/config.js";
+import { AuthController } from "./auth/controller.js";
+import { createPerSessionAuthenticator } from "./auth/per-session-auth.js";
 
 function isGitHubCodespaceEnv(): boolean {
   return process.env.CODESPACES === "true" && !!process.env.CODESPACE_NAME;
@@ -54,7 +57,7 @@ const argv = yargs(hideBin(process.argv))
     alias: "a",
     describe: "Type of authentication to use",
     type: "string",
-    choices: ["interactive", "azcli", "env", "envvar"],
+    choices: ["interactive", "azcli", "env", "envvar", "obo"],
     default: defaultAuthenticationType,
   })
   .option("tenant", {
@@ -110,7 +113,7 @@ async function main() {
     isCodespace: isGitHubCodespaceEnv(),
   });
 
-  function createServer(): McpServer {
+  function createServer(tokenProviderOverride?: () => Promise<string>): McpServer {
     const server = new McpServer({
       name: "Azure DevOps MCP Server",
       version: packageVersion,
@@ -126,7 +129,8 @@ async function main() {
       userAgentComposer.appendMcpClientInfo(server.server.getClientVersion());
     };
 
-    configureAllTools(server, authenticator, getAzureDevOpsClient(authenticator, userAgentComposer), () => userAgentComposer.userAgent, enabledDomains);
+    const effectiveAuthenticator = tokenProviderOverride || authenticator;
+    configureAllTools(server, effectiveAuthenticator, getAzureDevOpsClient(effectiveAuthenticator, userAgentComposer), () => userAgentComposer.userAgent, enabledDomains);
     return server;
   }
 
@@ -149,6 +153,20 @@ async function main() {
 
     const transports: Record<string, StreamableHTTPServerTransport> = {};
 
+    // OBO authentication: register auth routes and extract user identity from MCP requests
+    let authController: AuthController | null = null;
+    if (argv.authentication === "obo") {
+      try {
+        const azureADConfig = loadAzureADConfig();
+        authController = new AuthController(azureADConfig);
+        authController.registerRoutes(app);
+        logger.info("OBO authentication enabled — auth routes registered at /auth/*");
+      } catch (error) {
+        logger.error("Failed to initialize OBO authentication. Ensure OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_TENANT_ID, OAUTH_REDIRECT_URL are set.", error);
+        process.exit(1);
+      }
+    }
+
     app.post("/mcp", async (req: Request, res: Response) => {
       const sessionId = req.headers["mcp-session-id"] as string | undefined;
       try {
@@ -157,6 +175,41 @@ async function main() {
         if (sessionId && transports[sessionId]) {
           transport = transports[sessionId];
         } else if (!sessionId && isInitializeRequest(req.body)) {
+          // Resolve per-session authenticator for OBO mode
+          let sessionAuthenticator: (() => Promise<string>) | undefined;
+          if (authController) {
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+              res.status(401).json({
+                jsonrpc: "2.0",
+                error: { code: -32000, message: "Unauthorized: OBO authentication requires Authorization header. Login at /auth/login" },
+                id: null,
+              });
+              return;
+            }
+
+            const jwtToken = authHeader.substring(7);
+            const sessionManager = authController.getSessionManager();
+            const payload = sessionManager.validateToken(jwtToken);
+
+            if (!payload) {
+              res.status(401).json({
+                jsonrpc: "2.0",
+                error: { code: -32000, message: "Unauthorized: Invalid or expired token. Please login again at /auth/login" },
+                id: null,
+              });
+              return;
+            }
+
+            sessionAuthenticator = createPerSessionAuthenticator(
+              payload.sessionId,
+              payload.userId,
+              sessionManager,
+              authController.getOBOService(),
+            );
+            logger.info(`OBO: MCP session initialized for user ${payload.email}`);
+          }
+
           transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
             onsessioninitialized: (sid) => {
@@ -171,7 +224,7 @@ async function main() {
             }
           };
 
-          const server = createServer();
+          const server = createServer(sessionAuthenticator);
           await server.connect(transport);
           await transport.handleRequest(req, res, req.body);
           return;
@@ -235,7 +288,47 @@ async function main() {
 
     const transports: Record<string, SSEServerTransport> = {};
 
+    let authController: AuthController | null = null;
+    if (argv.authentication === "obo") {
+      try {
+        const azureADConfig = loadAzureADConfig();
+        authController = new AuthController(azureADConfig);
+        authController.registerRoutes(app);
+        logger.info("OBO authentication enabled — auth routes registered at /auth/*");
+      } catch (error) {
+        logger.error("Failed to initialize OBO authentication.", error);
+        process.exit(1);
+      }
+    }
+
     app.get("/sse", async (req: Request, res: Response) => {
+      // Resolve per-session authenticator for OBO mode
+      let sessionAuthenticator: (() => Promise<string>) | undefined;
+      if (authController) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          res.status(401).send("Unauthorized: OBO authentication requires Authorization header. Login at /auth/login");
+          return;
+        }
+
+        const jwtToken = authHeader.substring(7);
+        const sessionManager = authController.getSessionManager();
+        const payload = sessionManager.validateToken(jwtToken);
+
+        if (!payload) {
+          res.status(401).send("Unauthorized: Invalid or expired token");
+          return;
+        }
+
+        sessionAuthenticator = createPerSessionAuthenticator(
+          payload.sessionId,
+          payload.userId,
+          sessionManager,
+          authController.getOBOService(),
+        );
+        logger.info(`OBO: SSE session initialized for user ${payload.email}`);
+      }
+
       const transport = new SSEServerTransport("/messages", res);
       const sessionId = transport.sessionId;
       transports[sessionId] = transport;
@@ -244,7 +337,7 @@ async function main() {
         delete transports[sessionId];
       };
 
-      const server = createServer();
+      const server = createServer(sessionAuthenticator);
       await server.connect(transport);
     });
 

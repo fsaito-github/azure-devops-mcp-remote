@@ -268,3 +268,62 @@ The MCP server may be authenticating with a different tenant than your Azure Dev
    - The organization name is spelled correctly (case-sensitive)
    - The organization exists and you have access to it
    - You're using just the organization name, not the full URL (e.g., use `contoso` not `https://dev.azure.com/contoso`)
+
+## OBO (On-Behalf-Of) Authentication Issues
+
+If you're using OBO authentication (`--authentication obo`), see the dedicated [OBO Authentication guide](./OBO-AUTH.md) for detailed setup and troubleshooting.
+
+### Common OBO Errors
+
+1. **`OBO_EXCHANGE_FAILED` — Failed to obtain Azure DevOps token**
+
+   **Cause:** The App Registration doesn't have the `user_impersonation` delegated permission for Azure DevOps, or admin consent hasn't been granted.
+
+   **Solution:**
+   - Go to Azure Portal → App Registration → API permissions
+   - Verify `Azure DevOps > user_impersonation` is listed
+   - Click **Grant admin consent** if the Status column doesn't show "Granted"
+   - See [Azure AD Setup](./AZURE-AD-SETUP.md) for full instructions
+
+2. **`Unauthorized: OBO authentication requires Authorization header`**
+
+   **Cause:** The MCP client is not sending the `Authorization: Bearer <jwt>` header with requests.
+
+   **Solution:**
+   - First, login at `http://localhost:<port>/auth/login` to obtain a JWT token
+   - Configure your MCP client with the `headers` property:
+     ```json
+     {
+       "servers": {
+         "ado-obo": {
+           "type": "http",
+           "url": "http://localhost:8080/mcp",
+           "headers": {
+             "Authorization": "Bearer <your-jwt-token>"
+           }
+         }
+       }
+     }
+     ```
+
+3. **`Azure AD configuration incomplete`**
+
+   **Cause:** One or more required environment variables are missing.
+
+   **Solution:** Ensure all of the following are set:
+   - `OAUTH_CLIENT_ID` — Application (client) ID from App Registration
+   - `OAUTH_CLIENT_SECRET` — Client secret value
+   - `OAUTH_TENANT_ID` — Directory (tenant) ID
+   - `OAUTH_REDIRECT_URL` — Redirect URI (e.g., `http://localhost:8080/auth/callback`)
+
+4. **`Session expired or invalid`**
+
+   **Cause:** The JWT token has expired (default TTL: 1 hour).
+
+   **Solution:**
+   - Login again at `/auth/login` to get a new JWT
+   - To refresh the ADO token without re-logging in:
+     ```bash
+     curl -X POST http://localhost:8080/auth/refresh-ado \
+       -H "Authorization: Bearer <your-jwt>"
+     ```
