@@ -142,18 +142,17 @@ export class AuthController {
       // Remover state do armazenamento
       this.stateStore.delete(state);
 
-      // Retornar token ao cliente
-      // Em produção, você poderia redirecionar para uma página com o token
-      res.json({
-        success: true,
-        token: jwt,
-        user: {
-          userId: userInfo.userId,
-          email: userInfo.email,
-          displayName: userInfo.displayName,
-        },
-        expiresIn: token.expiresIn,
-      });
+      // Retornar página HTML com token e instruções
+      const expiresInMinutes = Math.floor(token.expiresIn / 60);
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(this.buildCallbackHtml({
+        jwt,
+        userId: userInfo.userId,
+        email: userInfo.email,
+        displayName: userInfo.displayName,
+        expiresInMinutes,
+        serverUrl: `${req.protocol}://${req.get("host")}`,
+      }));
     } catch (error) {
       console.error("Callback error:", error);
       res.status(500).json({
@@ -338,5 +337,183 @@ export class AuthController {
    */
   getSessionManager(): SessionManager {
     return this.sessionManager;
+  }
+
+  /**
+   * Builds the HTML page shown after successful login
+   */
+  private buildCallbackHtml(params: {
+    jwt: string;
+    userId: string;
+    email: string;
+    displayName: string;
+    expiresInMinutes: number;
+    serverUrl: string;
+  }): string {
+    const { jwt, email, displayName, expiresInMinutes, serverUrl } = params;
+    const mcpSnippet = JSON.stringify(
+      {
+        servers: {
+          "azure-devops": {
+            type: "http",
+            url: `${serverUrl}/mcp`,
+            headers: {
+              Authorization: `Bearer ${jwt}`,
+            },
+          },
+        },
+      },
+      null,
+      2
+    );
+
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azure DevOps MCP — Login Concluído</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0e1117; color: #c9d1d9; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+      max-width: 720px; width: 100%; padding: 32px;
+    }
+    .success-icon {
+      width: 48px; height: 48px; background: #238636; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 16px;
+    }
+    h1 { font-size: 24px; color: #f0f6fc; margin-bottom: 4px; }
+    .subtitle { color: #8b949e; margin-bottom: 24px; }
+    .user-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #1c2128; border: 1px solid #30363d; border-radius: 20px;
+      padding: 6px 14px; margin-bottom: 24px; font-size: 14px;
+    }
+    .user-badge .avatar {
+      width: 24px; height: 24px; background: #6e40c9; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600; color: white;
+    }
+    .section { margin-bottom: 20px; }
+    .section-title {
+      font-size: 13px; font-weight: 600; color: #8b949e;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+    }
+    .token-box {
+      background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+      padding: 12px; font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: 12px; word-break: break-all; color: #79c0ff;
+      max-height: 80px; overflow-y: auto; position: relative;
+    }
+    .code-box {
+      background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+      padding: 16px; font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: 13px; line-height: 1.5; overflow-x: auto;
+      white-space: pre; color: #c9d1d9;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 6px; border: 1px solid #30363d;
+      background: #21262d; color: #c9d1d9; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn:hover { background: #30363d; border-color: #8b949e; }
+    .btn-primary { background: #238636; border-color: #238636; color: white; }
+    .btn-primary:hover { background: #2ea043; }
+    .btn-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .copied {
+      background: #238636 !important; border-color: #238636 !important; color: white !important;
+    }
+    .steps { list-style: none; counter-reset: steps; }
+    .steps li {
+      counter-increment: steps; padding: 8px 0 8px 36px; position: relative;
+      border-left: 2px solid #30363d; margin-left: 12px; font-size: 14px;
+    }
+    .steps li:last-child { border-left-color: transparent; }
+    .steps li::before {
+      content: counter(steps);
+      position: absolute; left: -13px; top: 6px;
+      width: 24px; height: 24px; background: #30363d; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600; color: #f0f6fc;
+    }
+    .expires {
+      display: inline-flex; align-items: center; gap: 4px;
+      color: #d29922; font-size: 13px; margin-top: 16px;
+    }
+    .file-label {
+      display: inline-block; background: #1c2128; border: 1px solid #30363d;
+      border-radius: 6px 6px 0 0; padding: 4px 12px; font-size: 12px;
+      font-family: 'SFMono-Regular', Consolas, monospace; color: #8b949e;
+      border-bottom: none; margin-bottom: -1px; position: relative; z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="success-icon">✓</div>
+    <h1>Login concluído!</h1>
+    <p class="subtitle">Autenticação OBO realizada com sucesso</p>
+
+    <div class="user-badge">
+      <div class="avatar">${displayName.charAt(0).toUpperCase()}</div>
+      <span><strong>${displayName}</strong> &nbsp;${email}</span>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Como usar</div>
+      <ol class="steps">
+        <li>Copie o snippet abaixo (clique no botão)</li>
+        <li>Cole no arquivo <code>.vscode/mcp.json</code> do seu projeto</li>
+        <li>Recarregue a janela do VS Code (<code>Ctrl+Shift+P</code> → <em>Reload Window</em>)</li>
+      </ol>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Snippet para VS Code</div>
+      <span class="file-label">.vscode/mcp.json</span>
+      <div class="code-box" id="snippet">${this.escapeHtml(mcpSnippet)}</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="copyText('snippet', this)">📋 Copiar snippet</button>
+        <button class="btn" onclick="copyText('token', this)">🔑 Copiar só o token</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">JWT Token</div>
+      <div class="token-box" id="token">${jwt}</div>
+    </div>
+
+    <div class="expires">⏱ Token expira em ${expiresInMinutes} minutos</div>
+  </div>
+
+  <script>
+    function copyText(elementId, btn) {
+      const text = document.getElementById(elementId).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const original = btn.innerHTML;
+        btn.innerHTML = '✓ Copiado!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.innerHTML = original; btn.classList.remove('copied'); }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>`;
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 }
