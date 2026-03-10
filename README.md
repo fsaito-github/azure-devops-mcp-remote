@@ -44,29 +44,47 @@ export ADO_MCP_AUTH_TOKEN="seu-pat-token-aqui"
 $env:ADO_MCP_AUTH_TOKEN = "seu-pat-token-aqui"
 ```
 
-### Passo 2 — Rodar o servidor
+### Passo 2 — Clonar, instalar e buildar
 
 ```bash
-npx -y @azure-devops/mcp sua-organizacao --authentication envvar
+git clone https://github.com/fsaito-github/azure-devops-mcp-remote.git
+cd azure-devops-mcp-remote
+npm install
+npm run build
 ```
 
-Substitua `sua-organizacao` pelo nome da sua org no Azure DevOps (a parte que aparece em `https://dev.azure.com/sua-organizacao`).
+### Passo 3 — Testar o servidor
 
-### Passo 3 — Configurar no VS Code
+Substitua `sua-organizacao` pelo nome da sua org no Azure DevOps (a parte que aparece em `https://dev.azure.com/sua-organizacao`):
 
-Crie o arquivo `.vscode/mcp.json` no seu projeto:
+```bash
+node dist/index.js sua-organizacao --authentication envvar
+```
+
+Se não houver erros, o servidor está pronto. Encerre com `Ctrl+C`.
+
+### Passo 4 — Configurar no VS Code
+
+Crie o arquivo `.vscode/mcp.json` no seu projeto (não no repo do MCP, mas no projeto onde você usa o Copilot):
 
 ```json
 {
   "servers": {
     "azure-devops": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@azure-devops/mcp", "sua-organizacao", "--authentication", "envvar"]
+      "command": "node",
+      "args": [
+        "C:/caminho/completo/para/azure-devops-mcp-remote/dist/index.js",
+        "sua-organizacao",
+        "--authentication",
+        "envvar"
+      ]
     }
   }
 }
 ```
+
+> ⚠️ **Importante:** Substitua `C:/caminho/completo/para/azure-devops-mcp-remote` pelo caminho real onde você clonou o repositório. No Windows, use `/` ou `\\\\` como separador.
 
 **Pronto!** Abra o Copilot Chat no VS Code e peça algo como _"liste os work items do projeto MyProject"_.
 
@@ -85,8 +103,13 @@ Crie `.vscode/mcp.json` na raiz do seu projeto:
   "servers": {
     "azure-devops": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@azure-devops/mcp", "sua-organizacao", "--authentication", "envvar"]
+      "command": "node",
+      "args": [
+        "C:/caminho/para/azure-devops-mcp-remote/dist/index.js",
+        "sua-organizacao",
+        "--authentication",
+        "envvar"
+      ]
     }
   }
 }
@@ -131,8 +154,13 @@ Em `claude_desktop_config.json`:
 {
   "mcpServers": {
     "azure-devops": {
-      "command": "npx",
-      "args": ["-y", "@azure-devops/mcp", "sua-organizacao", "--authentication", "envvar"]
+      "command": "node",
+      "args": [
+        "C:/caminho/para/azure-devops-mcp-remote/dist/index.js",
+        "sua-organizacao",
+        "--authentication",
+        "envvar"
+      ]
     }
   }
 }
@@ -146,8 +174,13 @@ Crie `.cursor/mcp.json` na raiz do projeto:
 {
   "mcpServers": {
     "azure-devops": {
-      "command": "npx",
-      "args": ["-y", "@azure-devops/mcp", "sua-organizacao", "--authentication", "envvar"]
+      "command": "node",
+      "args": [
+        "C:/caminho/para/azure-devops-mcp-remote/dist/index.js",
+        "sua-organizacao",
+        "--authentication",
+        "envvar"
+      ]
     }
   }
 }
@@ -162,8 +195,13 @@ Crie `.mcp.json` na raiz da solução:
   "servers": {
     "azure-devops": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@azure-devops/mcp", "sua-organizacao", "--authentication", "envvar"]
+      "command": "node",
+      "args": [
+        "C:/caminho/para/azure-devops-mcp-remote/dist/index.js",
+        "sua-organizacao",
+        "--authentication",
+        "envvar"
+      ]
     }
   }
 }
